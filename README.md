@@ -13,6 +13,7 @@ A webhook service that connects [Miniflux](https://miniflux.app/) (an RSS feed r
 
 - Docker and Docker Compose
 - Running instances of both Hoarder and Miniflux
+- Running latest release of Hoarder
 
 ## Installation
 
