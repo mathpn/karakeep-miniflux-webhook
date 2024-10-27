@@ -1,24 +1,34 @@
 # hoarder-miniflux-webhook
 
-Simple service to integrate Hoarder with Miniflux using a webhook.
+A webhook service that connects [Miniflux](https://miniflux.app/) (an RSS feed reader) with [Hoarder](https://docs.hoarder.app/) (a "Bookmark Everything" app). This integration allows you to automatically save your Miniflux entries to Hoarder.
 
-## Setup
+## Features
 
-The setup presented below uses Docker Compose for both Hoarder and Miniflux.
+- Save only starred/favorite Miniflux entries to Hoarder
+- Optionally save all new Miniflux entries (configurable)
+- Works with Docker Compose deployments
+- Compatible with reverse proxy setups
 
-### Create a shared bridge Docker network
+## Prerequisites
 
-This is required if each service is running on separate Docker networks and if they don't have public IP addresses (i.e. not exposed to the internet). This is the default behavior if there are separate docker compose files. The network will allow communication between the services.
+- Docker and Docker Compose
+- Running instances of both Hoarder and Miniflux
+
+## Installation
+
+### 1. Create a Bridge Network
+
+First, create a Docker network to enable communication between Hoarder and Miniflux:
 
 ```bash
 docker network create service_bridge
 ```
 
-### Modify both docker compose files to include the new network
+### 2. Configure Docker Compose Files
 
 Since we're specifying a network manually, we also need to create a default network for all services. Use the examples below as **examples** and change what is needed.
 
-#### Hoarder
+#### Hoarder Configuration
 
 Add the new networks to each service as well as in the top-level `networks` key. This example is derived from the [hoarder repo](https://github.com/hoarder-app/hoarder/blob/main/docker/docker-compose.yml) with additional networking configuration. Only the `web` service needs access to the `service_bridge` network.
 
@@ -85,7 +95,7 @@ networks:
     external: true
 ```
 
-#### Miniflux
+#### Miniflux Configuration
 
 Add the new networks to each service as well as in the top-level `networks` key. Only the `miniflux` container needs to access the `service_bridge` network. The example configuration below was adapted from [the Miniflux documentation](https://miniflux.app/docs/docker.html).
 
@@ -134,18 +144,38 @@ networks:
   miniflux:
 ```
 
-### Fill environment variables
+### 3. Set Up Environment Variables
 
-Copy the `.env.example` file to `.env` and make the necessary changes. If you follow the same setup provided above, you only need to fill `HOARDER_API_TOKEN` and `WEBHOOK_SECRET`. Generate the Hoarder API token directly in the Hoarder web interface (Settings → API Keys).
+1. Copy `.env.example` to `.env`
+2. Configure the required variables:
+   - `HOARDER_API_TOKEN`: Generate this in Hoarder (Settings → API Keys)
+   - `WEBHOOK_SECRET`: Generated when enabling webhooks in Miniflux, as described [here](https://miniflux.app/docs/webhooks.html)
+   - `SAVE_NEW_ENTRIES`: Set to `true` to save all new entries (default: `false`)
 
-As stated in the [documentation](https://miniflux.app/docs/webhooks.html), the webhook secret is generated when you enable the webhook integration (Settings → Integrations → Webhook → Enable webhook). Copy the secret to the `.env` file. The Webhook URL should be in the format `http://<SERVICE_NAME>:<PORT>/webhook`. Using the example configuration provided here: `http://hoarder-miniflux-webhook:8080/webhook`.
+### 4. Configure Miniflux Webhook
 
-### Restart the Hoarder services
+In Miniflux:
 
-In the directory of the Hoarder docker compose file:
+1. Go to Settings → Integrations → Webhook
+2. Enable webhook
+3. Set the Webhook URL to: `http://hoarder-miniflux-webhook:8080/webhook`
+4. Copy the generated webhook secret to your `.env` file
+
+### 5. Deploy
+
+Restart the Hoarder services:
 
 ```bash
 docker compose down
 docker compose build
 docker compose up -d
 ```
+
+## Important Notes
+
+- If using a reverse proxy, no additional configuration is needed as services communicate through Docker's internal network
+- Setting `SAVE_NEW_ENTRIES=true` may result in a large number of entries being saved to Hoarder
+
+## Support
+
+For issues, suggestions, or improvements, please open an issue in the GitHub repository.
