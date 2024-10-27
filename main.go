@@ -12,6 +12,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -21,9 +22,10 @@ import (
 const defaultPort = ":8080"
 
 var (
-	webhookSecret string
-	bookmarkAPI   string
-	apiToken      string
+	webhookSecret  string
+	bookmarkAPI    string
+	apiToken       string
+	saveNewEntries bool
 )
 
 // BookmarkService handles communication with the bookmark API
@@ -146,6 +148,21 @@ type SaveEntryPayload struct {
 	Entry     Entry  `json:"entry"`
 }
 
+// GetBoolEnv retrieves a boolean environment variable
+func GetBoolEnv(key string) (bool, error) {
+	envVal := os.Getenv(key)
+	if envVal == "" {
+		return false, nil
+	}
+
+	val, err := strconv.ParseBool(envVal)
+	if err != nil {
+		return false, fmt.Errorf("invalid boolean value for %s: %v", key, err)
+	}
+
+	return val, nil
+}
+
 func loadConfig() error {
 	if err := godotenv.Load(); err != nil {
 		return fmt.Errorf("error loading .env file: %w", err)
@@ -166,6 +183,12 @@ func loadConfig() error {
 		return errors.New("HOARDER_API_TOKEN must be set in .env file")
 	}
 
+	var err error
+	saveNewEntries, err = GetBoolEnv("SAVE_NEW_ENTRIES")
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -178,24 +201,33 @@ func verifySignature(payload []byte, signature string) bool {
 
 var bookmarkService *BookmarkService
 
+func saveEntry(entry Entry) error {
+	if err := bookmarkService.AddBookmark(entry); err != nil {
+		log.Printf("Failed to save bookmark for %s: %v", entry.URL, err)
+		return fmt.Errorf("failed to save bookmark: %w", err)
+	}
+	log.Printf("Successfully saved bookmark for: %s", entry.URL)
+	return nil
+}
+
 func handleNewEntries(feed Feed, entries []Entry) error {
+	if !saveNewEntries {
+		return nil
+	}
+
 	log.Printf("Processing %d new entries from feed: %s", len(entries), feed.Title)
 	for _, entry := range entries {
-		log.Printf("New entry: %s - %s", entry.Title, entry.URL)
+		err := saveEntry(entry)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
 func handleSaveEntry(entry Entry) error {
 	log.Printf("Processing saved entry: %s - %s", entry.Title, entry.URL)
-
-	if err := bookmarkService.AddBookmark(entry); err != nil {
-		log.Printf("Failed to save bookmark for %s: %v", entry.URL, err)
-		return fmt.Errorf("failed to save bookmark: %w", err)
-	}
-
-	log.Printf("Successfully saved bookmark for: %s", entry.URL)
-	return nil
+	return saveEntry(entry)
 }
 
 func webhookHandler(w http.ResponseWriter, r *http.Request) {
