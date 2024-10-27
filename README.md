@@ -172,6 +172,13 @@ docker compose build
 docker compose up -d
 ```
 
+Restart the Miniflux services:
+
+```bash
+docker compose down
+docker compose up -d
+```
+
 ## Important Notes
 
 - If using a reverse proxy, no additional configuration is needed as services communicate through Docker's internal network
