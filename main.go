@@ -156,14 +156,14 @@ func loadConfig() error {
 		return errors.New("WEBHOOK_SECRET must be set in .env file")
 	}
 
-	bookmarkAPI = os.Getenv("BOOKMARK_API_URL")
+	bookmarkAPI = os.Getenv("HOARDER_API_URL")
 	if bookmarkAPI == "" {
-		return errors.New("BOOKMARK_API_URL must be set in .env file")
+		return errors.New("HOARDER_API_URL must be set in .env file")
 	}
 
-	apiToken = os.Getenv("BOOKMARK_API_TOKEN")
+	apiToken = os.Getenv("HOARDER_API_TOKEN")
 	if apiToken == "" {
-		return errors.New("BOOKMARK_API_TOKEN must be set in .env file")
+		return errors.New("HOARDER_API_TOKEN must be set in .env file")
 	}
 
 	return nil
