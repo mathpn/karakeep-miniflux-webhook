@@ -17,26 +17,50 @@ A webhook service that connects [Miniflux](https://miniflux.app/) (an RSS feed r
 
 ## Installation
 
-### 1. Create a Bridge Network
+### 1. Prepare the Environment
 
-First, create a Docker network to enable communication between Hoarder and Miniflux:
+1. First, clone this repository into your Hoarder installation directory:
 
-```bash
-docker network create service_bridge
-```
+   ```bash
+   cd /path/to/your/hoarder/directory
+   git clone https://github.com/mathpn/hoarder-miniflux-webhook.git
+   ```
 
-### 2. Configure Docker Compose Files
+2. Create a Docker network to enable communication between Hoarder and Miniflux:
 
-Since we're specifying a network manually, we also need to create a default network for all services. Use the examples below as **examples** and change what is needed.
+   ```bash
+   docker network create service_bridge
+   ```
 
-#### Hoarder Configuration
+### 2. Set Up Environment Variables
 
-Add the new networks to each service as well as in the top-level `networks` key. This example is derived from the [hoarder repo](https://github.com/hoarder-app/hoarder/blob/main/docker/docker-compose.yml) with additional networking configuration. Only the `web` service needs access to the `service_bridge` network.
+1. Navigate to the cloned repository directory:
 
-**Change the `build` key of `miniflux-integration` to the path of this repository.**
+   ```bash
+   cd hoarder-miniflux-webhook
+   ```
+
+2. Copy the example environment file:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+3. Configure the required variables in the `.env` file:
+
+   - `HOARDER_API_TOKEN`: Generate this in Hoarder (Settings → API Keys)
+   - `WEBHOOK_SECRET`: This will be generated when enabling webhooks in Miniflux (we'll get this in step 4)
+   - `SAVE_NEW_ENTRIES`: Set to `true` to save all new entries (default: `false`)
+
+### 3. Configure Docker Compose Files
+
+You'll need to modify both your Hoarder and Miniflux Docker Compose configurations to work with the webhook service. Since we're specifying the `service_bridge` network manually, we must also explicitly define the default networks for each service to maintain proper connectivity.
+
+The configurations shown below follow the defaults of each service. Comments indicate what was changed or added. If you have a different configuration, follow the comments to apply the changes to it.
+
+#### Hoarder Configuration (`docker-compose.yml` in your Hoarder directory)
 
 ```yaml
-version: "3.8"
 services:
   web:
     image: ghcr.io/hoarder-app/hoarder:${HOARDER_VERSION:-release}
@@ -46,8 +70,7 @@ services:
     ports:
       - 3000:3000
     networks:
-      - hoarder
-      - service_bridge
+      - hoarder # Default network must be explicitly set
     env_file:
       - .env
     environment:
@@ -55,11 +78,12 @@ services:
       BROWSER_WEB_URL: http://chrome:9222
       # OPENAI_API_KEY: ...
       DATA_DIR: /data
+
   chrome:
     image: gcr.io/zenika-hub/alpine-chrome:123
     restart: unless-stopped
     networks:
-      - hoarder
+      - hoarder # Default network must be explicitly set
     command:
       - --no-sandbox
       - --disable-gpu
@@ -67,11 +91,12 @@ services:
       - --remote-debugging-address=0.0.0.0
       - --remote-debugging-port=9222
       - --hide-scrollbars
+
   meilisearch:
     image: getmeili/meilisearch:v1.6
     restart: unless-stopped
     networks:
-      - hoarder
+      - hoarder # Default network must be explicitly set
     env_file:
       - .env
     environment:
@@ -79,26 +104,25 @@ services:
     volumes:
       - meilisearch:/meili_data
 
+  # Add webhook service
   hoarder-miniflux-webhook:
-    build: ../hoarder-miniflux-webhook
+    build: ./hoarder-miniflux-webhook
     restart: unless-stopped
     networks:
-      - hoarder
-      - service_bridge
+      - hoarder # Default network must be explicitly set
+      - service_bridge # Additional network for inter-service communication
 
 volumes:
   meilisearch:
   data:
 
 networks:
-  hoarder:
-  service_bridge:
+  hoarder: # Default network definition
+  service_bridge: # Additional network for inter-service communication
     external: true
 ```
 
-#### Miniflux Configuration
-
-Add the new networks to each service as well as in the top-level `networks` key. Only the `miniflux` container needs to access the `service_bridge` network. The example configuration below was adapted from [the Miniflux documentation](https://miniflux.app/docs/docker.html).
+#### Miniflux Configuration (`docker-compose.yml` in your Miniflux directory)
 
 ```yaml
 services:
@@ -113,14 +137,15 @@ services:
       test: ["CMD", "/usr/bin/miniflux", "-healthcheck", "auto"]
     env_file: .env
     networks:
-      - service_bridge
-      - miniflux
+      - miniflux # Default network must be explicitly set
+      - service_bridge # Additional network for inter-service communication
     environment:
       - DATABASE_URL=postgres://miniflux:secret@db/miniflux?sslmode=disable
       - RUN_MIGRATIONS=1
       - CREATE_ADMIN=1
       - ADMIN_USERNAME=admin
       - ADMIN_PASSWORD=test123
+
   db:
     image: postgres:15
     environment:
@@ -128,7 +153,7 @@ services:
       - POSTGRES_PASSWORD=secret
       - POSTGRES_DB=miniflux
     networks:
-      - miniflux
+      - miniflux # Default network must be explicitly set
     volumes:
       - miniflux-db:/var/lib/postgresql/data
     healthcheck:
@@ -140,49 +165,65 @@ volumes:
   miniflux-db:
 
 networks:
-  service_bridge:
+  miniflux: # Default network definition
+  service_bridge: # Additional network for inter-service communication
     external: true
-  miniflux:
 ```
 
-### 3. Set Up Environment Variables
-
-1. Copy `.env.example` to `.env`
-2. Configure the required variables:
-   - `HOARDER_API_TOKEN`: Generate this in Hoarder (Settings → API Keys)
-   - `WEBHOOK_SECRET`: Generated when enabling webhooks in Miniflux, as described [here](https://miniflux.app/docs/webhooks.html)
-   - `SAVE_NEW_ENTRIES`: Set to `true` to save all new entries (default: `false`)
+> **Important:** The default networks (`hoarder` and `miniflux`) must be explicitly defined for each service in their respective Docker Compose files. This is necessary because we're adding the `service_bridge` network manually. Without explicitly setting these networks, services may not be able to communicate with each other properly within their own stack.
 
 ### 4. Configure Miniflux Webhook
 
-In Miniflux:
+1. In Miniflux's web interface:
 
-1. Go to Settings → Integrations → Webhook
-2. Enable webhook
-3. Set the Webhook URL to: `http://hoarder-miniflux-webhook:8080/webhook`
-4. Copy the generated webhook secret to your `.env` file
+   - Go to Settings → Integrations → Webhook
+   - Enable webhook
+   - Set the Webhook URL to: `http://hoarder-miniflux-webhook:8080/webhook`
+   - Copy the generated webhook secret
+
+2. Paste the webhook secret into your webhook `.env` file:
+
+   ```env
+   WEBHOOK_SECRET=your_generated_secret
+   ```
 
 ### 5. Deploy
 
-Restart the Hoarder services:
+1. Start/restart the Hoarder services:
 
-```bash
-docker compose down
-docker compose build
-docker compose up -d
+   ```bash
+   cd /path/to/your/hoarder/directory
+   docker compose down
+   docker compose build
+   docker compose up -d
+   ```
+
+2. Start/restart the Miniflux services:
+
+   ```bash
+   cd /path/to/your/miniflux/directory
+   docker compose down
+   docker compose up -d
+   ```
+
+## Directory Structure Example
+
+Your directory structure should look something like this:
+
 ```
-
-Restart the Miniflux services:
-
-```bash
-docker compose down
-docker compose up -d
+/path/to/your/hoarder/
+├── docker-compose.yml
+├── .env
+└── hoarder-miniflux-webhook/
+    ├── .env
+    └── [other webhook files]
 ```
 
 ## Important Notes
 
 - If using a reverse proxy, no additional configuration is needed as services communicate through Docker's internal network
-- Setting `SAVE_NEW_ENTRIES=true` may result in a large number of entries being saved to Hoarder
+- Setting `SAVE_NEW_ENTRIES=true` may result in many entries being saved to Hoarder
+- Make sure both `.env` files exist: one for Hoarder and one for the webhook service
 
 ## Support
 
