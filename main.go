@@ -165,22 +165,22 @@ func GetBoolEnv(key string) (bool, error) {
 
 func loadConfig() error {
 	if err := godotenv.Load(); err != nil {
-		return fmt.Errorf("error loading .env file: %w", err)
+		fmt.Printf(".env file not loaded: %s\n", err)
 	}
 
 	webhookSecret = os.Getenv("WEBHOOK_SECRET")
 	if webhookSecret == "" {
-		return errors.New("WEBHOOK_SECRET must be set in .env file")
+		return errors.New("WEBHOOK_SECRET must be set in .env file or environment")
 	}
 
 	bookmarkAPI = os.Getenv("HOARDER_API_URL")
 	if bookmarkAPI == "" {
-		return errors.New("HOARDER_API_URL must be set in .env file")
+		return errors.New("HOARDER_API_URL must be set in .env file or environment")
 	}
 
 	apiToken = os.Getenv("HOARDER_API_TOKEN")
 	if apiToken == "" {
-		return errors.New("HOARDER_API_TOKEN must be set in .env file")
+		return errors.New("HOARDER_API_TOKEN must be set in .env file or environment")
 	}
 
 	var err error
