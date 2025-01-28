@@ -50,6 +50,7 @@ A webhook service that connects [Miniflux](https://miniflux.app/) (an RSS feed r
 
    - `HOARDER_API_TOKEN`: Generate this in Hoarder (Settings → API Keys)
    - `WEBHOOK_SECRET`: This will be generated when enabling webhooks in Miniflux (we'll get this in step 4)
+   - `HOARDER_API_URL`: URL of the Hoarder instance (e.g. http://web:3000)
    - `SAVE_NEW_ENTRIES`: Set to `true` to save all new entries (default: `false`)
 
 ### 3. Configure Docker Compose Files
