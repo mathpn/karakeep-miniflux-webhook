@@ -26,6 +26,7 @@ var (
 	bookmarkAPI    string
 	apiToken       string
 	saveNewEntries bool
+	addToList      bool
 	listID         string
 )
 
@@ -221,12 +222,19 @@ func loadConfig() error {
 		return errors.New("HOARDER_API_TOKEN must be set in .env file or environment")
 	}
 
-	listID = os.Getenv("LIST_ID")
-	if listID == "" {
-		return errors.New("LIST_ID must be set in .env file or environment")
+	var err error
+	addToList, err = GetBoolEnv("ADD_TO_LIST")
+	if err != nil {
+		return err
 	}
 
-	var err error
+	if addToList {
+		listID = os.Getenv("LIST_ID")
+		if listID == "" {
+			return errors.New("LIST_ID must be set in .env file or environment")
+		}
+	}
+
 	saveNewEntries, err = GetBoolEnv("SAVE_NEW_ENTRIES")
 	if err != nil {
 		return err
@@ -252,9 +260,11 @@ func saveEntry(entry Entry) error {
     }
 
     // Add the bookmark to the specified list
-    if err := bookmarkService.AddBookmarkToList(bookmarkID, listID); err != nil {
-        log.Printf("Failed to add bookmark %s to list %s: %v", bookmarkID, listID, err)
-        return fmt.Errorf("failed to add bookmark to list: %w", err)
+    if addToList {
+    	if err := bookmarkService.AddBookmarkToList(bookmarkID, listID); err != nil {
+    	    log.Printf("Failed to add bookmark %s to list %s: %v", bookmarkID, listID, err)
+    	    return fmt.Errorf("failed to add bookmark to list: %w", err)
+    	}
     }
 
     log.Printf("Successfully saved and added bookmark for: %s", entry.URL)
