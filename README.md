@@ -8,6 +8,7 @@ A webhook service that connects [Miniflux](https://miniflux.app/) (an RSS feed r
 - Optionally save all new Miniflux entries (configurable)
 - Works with Docker Compose deployments
 - Compatible with reverse proxy setups
+- Choose which list you want to save articles to
 
 ## Prerequisites
 
