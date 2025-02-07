@@ -8,6 +8,7 @@ A webhook service that connects [Miniflux](https://miniflux.app/) (an RSS feed r
 - Optionally save all new Miniflux entries (configurable)
 - Works with Docker Compose deployments
 - Compatible with reverse proxy setups
+- Choose which list you want to save articles to
 
 ## Prerequisites
 
@@ -52,6 +53,8 @@ A webhook service that connects [Miniflux](https://miniflux.app/) (an RSS feed r
    - `WEBHOOK_SECRET`: This will be generated when enabling webhooks in Miniflux (we'll get this in step 4)
    - `HOARDER_API_URL`: URL of the Hoarder instance (e.g. http://web:3000)
    - `SAVE_NEW_ENTRIES`: Set to `true` to save all new entries (default: `false`)
+   - `ADD_TO_LIST`: Set to `true` to save entries to specific list (set list below) (default: `false`)
+   - `LIST_ID`: List ID in Hoarder, you will set this on step 5 (default: unset)
 
 ### 3. Configure Docker Compose Files
 
@@ -188,7 +191,54 @@ networks:
    WEBHOOK_SECRET=your_generated_secret
    ```
 
-### 5. Deploy
+### 5. Set `LIST_ID` (optional, required if `ADD_TO_LIST` is true)
+
+You need `curl` and `jq` installed for this step.
+
+1. Run this command:
+
+```
+curl -H 'Authorization: Bearer <hoarder api key>' -L 'http://<hoarder instance>/api/v1/lists' -H 'Accept: application/json' | jq '.'
+```
+
+You'll get something that looks similar this:
+
+```
+{
+  "lists": [
+    {
+      "id": "xxxxxxxxxxxxxxxxxxxxxxxx",
+      "name": "List One",
+      "icon": "📄",
+      "parentId": null,
+      "type": "manual",
+      "query": null
+    },
+    {
+      "id": "xxxxxxxxxxxxxxxxxxxxxxxx",
+      "name": "List Two",
+      "icon": "📄",
+      "parentId": null,
+      "type": "manual",
+      "query": null
+    },
+    {
+      "id": "xxxxxxxxxxxxxxxxxxxxxxxx",
+      "name": "List Three",
+      "icon": "📄",
+      "parentId": null,
+      "type": "manual",
+      "query": null
+    }
+  ]
+}
+```
+
+2. Choose which list you want Miniflux to add articles to
+
+Copy the string in the `id` field of your list and paste it into your `.env` file in the `LIST_ID` variable.
+
+### 6. Deploy
 
 1. Start/restart the Hoarder services:
 

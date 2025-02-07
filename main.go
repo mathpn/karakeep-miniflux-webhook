@@ -26,6 +26,8 @@ var (
 	bookmarkAPI    string
 	apiToken       string
 	saveNewEntries bool
+	addToList      bool
+	listID         string
 )
 
 // BookmarkService handles communication with the bookmark API
@@ -60,7 +62,7 @@ func NewBookmarkService(baseURL, token string) *BookmarkService {
 }
 
 // AddBookmark sends a request to add a new bookmark
-func (s *BookmarkService) AddBookmark(entry Entry) error {
+func (s *BookmarkService) AddBookmark(entry Entry) (string, error) {
 	// Create bookmark request from entry
 	bookmark := BookmarkRequest{
 		Type: BookmarkTypeLink,
@@ -69,12 +71,12 @@ func (s *BookmarkService) AddBookmark(entry Entry) error {
 
 	jsonData, err := json.Marshal(bookmark)
 	if err != nil {
-		return fmt.Errorf("failed to marshal bookmark request: %w", err)
+		return "", fmt.Errorf("failed to marshal bookmark request: %w", err)
 	}
 
 	req, err := http.NewRequest(http.MethodPost, s.baseURL+"/api/v1/bookmarks", bytes.NewBuffer(jsonData))
 	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
+		return "", fmt.Errorf("failed to create request: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -83,18 +85,55 @@ func (s *BookmarkService) AddBookmark(entry Entry) error {
 
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to send request: %w", err)
+		return "", fmt.Errorf("failed to send request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	body, _ := io.ReadAll(resp.Body)
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, string(body))
+		return "", fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, string(body))
+	}
+
+	var respData struct {
+		ID string `json:"id"`
+	}
+
+	if err := json.Unmarshal(body, &respData); err != nil {
+		return "", fmt.Errorf("failed to parse bookmark response: %v", err)
+		//fmt.Errorf("failed to parse bookmark response: %v", err)
 	}
 
 	log.Printf("Successfully created bookmark. Response: %s", string(body))
-	return nil
+	return respData.ID, nil
+}
+
+// https://docs.hoarder.app/api/add-a-bookmark-to-a-list
+func (s *BookmarkService) AddBookmarkToList(bookmarkID, listID string) error {
+    endpoint := fmt.Sprintf("%s/api/v1/lists/%s/bookmarks/%s", s.baseURL, listID, bookmarkID)
+    
+    req, err := http.NewRequest(http.MethodPut, endpoint, nil)
+    if err != nil {
+        return fmt.Errorf("failed to create request: %w", err)
+    }
+
+    req.Header.Set("Content-Type", "application/json")
+    req.Header.Set("Accept", "application/json")
+    req.Header.Set("Authorization", "Bearer "+s.apiToken)
+
+    resp, err := s.httpClient.Do(req)
+    if err != nil {
+        return fmt.Errorf("failed to send request: %w", err)
+    }
+    defer resp.Body.Close()
+
+    if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+        body, _ := io.ReadAll(resp.Body)
+        return fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, string(body))
+    }
+
+    log.Printf("Bookmark %s added to list %s successfully", bookmarkID, listID)
+    return nil
 }
 
 type Feed struct {
@@ -184,6 +223,18 @@ func loadConfig() error {
 	}
 
 	var err error
+	addToList, err = GetBoolEnv("ADD_TO_LIST")
+	if err != nil {
+		return err
+	}
+
+	if addToList {
+		listID = os.Getenv("LIST_ID")
+		if listID == "" {
+			return errors.New("LIST_ID must be set in .env file or environment")
+		}
+	}
+
 	saveNewEntries, err = GetBoolEnv("SAVE_NEW_ENTRIES")
 	if err != nil {
 		return err
@@ -202,12 +253,22 @@ func verifySignature(payload []byte, signature string) bool {
 var bookmarkService *BookmarkService
 
 func saveEntry(entry Entry) error {
-	if err := bookmarkService.AddBookmark(entry); err != nil {
-		log.Printf("Failed to save bookmark for %s: %v", entry.URL, err)
-		return fmt.Errorf("failed to save bookmark: %w", err)
-	}
-	log.Printf("Successfully saved bookmark for: %s", entry.URL)
-	return nil
+    bookmarkID, err := bookmarkService.AddBookmark(entry)
+    if err != nil {
+        log.Printf("Failed to save bookmark for %s: %v", entry.URL, err)
+        return fmt.Errorf("failed to save bookmark: %w", err)
+    }
+
+    // Add the bookmark to the specified list
+    if addToList {
+    	if err := bookmarkService.AddBookmarkToList(bookmarkID, listID); err != nil {
+    	    log.Printf("Failed to add bookmark %s to list %s: %v", bookmarkID, listID, err)
+    	    return fmt.Errorf("failed to add bookmark to list: %w", err)
+    	}
+    }
+
+    log.Printf("Successfully saved and added bookmark for: %s", entry.URL)
+    return nil
 }
 
 func handleNewEntries(feed Feed, entries []Entry) error {
