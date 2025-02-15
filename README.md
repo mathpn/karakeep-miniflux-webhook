@@ -195,7 +195,7 @@ networks:
 
 You need `curl` installed for this step. Here we use `jq` for code formatting, but it is not strictly required. An alternative is to use `python -m json.tool`.
 
-1. Run this command:
+1. Make a request to list Hoarder lists:
 
 ```
 curl -H 'Authorization: Bearer <hoarder api key>' -L 'http://<hoarder instance>/api/v1/lists' -H 'Accept: application/json' | jq '.'
