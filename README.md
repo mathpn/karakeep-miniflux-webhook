@@ -193,7 +193,7 @@ networks:
 
 ### 5. Set `LIST_ID` (optional, required if `ADD_TO_LIST` is true)
 
-You need `curl` and `jq` installed for this step.
+You need `curl` installed for this step. Here we use `jq` for code formatting, but it is not strictly required. An alternative is to use `python -m json.tool`.
 
 1. Run this command:
 
