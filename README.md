@@ -201,7 +201,7 @@ You need `curl` installed for this step. Here we use `jq` for code formatting, b
 curl -H 'Authorization: Bearer <hoarder api key>' -L 'http://<hoarder instance>/api/v1/lists' -H 'Accept: application/json' | jq '.'
 ```
 
-You'll get something that looks similar this:
+The response should contain all Hoarder lists you've created, like the following example:
 
 ```
 {
