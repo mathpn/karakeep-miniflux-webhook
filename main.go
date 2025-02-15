@@ -127,7 +127,7 @@ func (s *BookmarkService) AddBookmarkToList(bookmarkID, listID string) error {
     }
     defer resp.Body.Close()
 
-    if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+    if resp.StatusCode != http.StatusNoContent {
         body, _ := io.ReadAll(resp.Body)
         return fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, string(body))
     }
