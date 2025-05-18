@@ -108,7 +108,7 @@ func (s *BookmarkService) AddBookmark(entry Entry) (string, error) {
 	return respData.ID, nil
 }
 
-// https://docs.hoarder.app/api/add-a-bookmark-to-a-list
+// https://docs.karakeep.app/api/add-a-bookmark-to-a-list
 func (s *BookmarkService) AddBookmarkToList(bookmarkID, listID string) error {
 	endpoint := fmt.Sprintf("%s/api/v1/lists/%s/bookmarks/%s", s.baseURL, listID, bookmarkID)
 
@@ -212,14 +212,21 @@ func loadConfig() error {
 		return errors.New("WEBHOOK_SECRET must be set in .env file or environment")
 	}
 
-	bookmarkAPI = os.Getenv("HOARDER_API_URL")
+	// Try Karakeep variables first, then fall back to Hoarder variables for backward compatibility
+	bookmarkAPI = os.Getenv("KARAKEEP_API_URL")
 	if bookmarkAPI == "" {
-		return errors.New("HOARDER_API_URL must be set in .env file or environment")
+		bookmarkAPI = os.Getenv("HOARDER_API_URL")
+		if bookmarkAPI == "" {
+			return errors.New("KARAKEEP_API_URL (or HOARDER_API_URL) must be set in .env file or environment")
+		}
 	}
 
-	apiToken = os.Getenv("HOARDER_API_TOKEN")
+	apiToken = os.Getenv("KARAKEEP_API_TOKEN")
 	if apiToken == "" {
-		return errors.New("HOARDER_API_TOKEN must be set in .env file or environment")
+		apiToken = os.Getenv("HOARDER_API_TOKEN")
+		if apiToken == "" {
+			return errors.New("KARAKEEP_API_TOKEN (or HOARDER_API_TOKEN) must be set in .env file or environment")
+		}
 	}
 
 	var err error
