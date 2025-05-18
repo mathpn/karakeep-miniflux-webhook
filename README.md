@@ -1,10 +1,10 @@
-# hoarder-miniflux-webhook
+# karakeep-miniflux-webhook
 
-A webhook service that connects [Miniflux](https://miniflux.app/) (an RSS feed reader) with [Hoarder](https://docs.hoarder.app/) (a "Bookmark Everything" app). This integration allows you to automatically save your Miniflux entries to Hoarder.
+A webhook service that connects [Miniflux](https://miniflux.app/) (an RSS feed reader) with [Karakeep](https://karakeep.app/) (a "Bookmark Everything" app). This integration allows you to automatically save your Miniflux entries to Karakeep.
 
 ## Features
 
-- Save only starred/favorite Miniflux entries to Hoarder
+- Save only starred/favorite Miniflux entries to Karakeep
 - Optionally save all new Miniflux entries (configurable)
 - Works with Docker Compose deployments
 - Compatible with reverse proxy setups
@@ -13,21 +13,21 @@ A webhook service that connects [Miniflux](https://miniflux.app/) (an RSS feed r
 ## Prerequisites
 
 - Docker and Docker Compose
-- Running instances of both Hoarder and Miniflux
-- Running latest release of Hoarder
+- Running instances of both Karakeep and Miniflux
+- Running latest release of Karakeep
 
 ## Installation
 
 ### 1. Prepare the Environment
 
-1. First, clone this repository into your Hoarder installation directory:
+1. First, clone this repository into your Karakeep installation directory:
 
    ```bash
-   cd /path/to/your/hoarder/directory
-   git clone https://github.com/mathpn/hoarder-miniflux-webhook.git
+   cd /path/to/your/karakeep/directory
+   git clone https://github.com/mathpn/karakeep-miniflux-webhook.git
    ```
 
-2. Create a Docker network to enable communication between Hoarder and Miniflux:
+2. Create a Docker network to enable communication between Karakeep and Miniflux:
 
    ```bash
    docker network create service_bridge
@@ -38,7 +38,7 @@ A webhook service that connects [Miniflux](https://miniflux.app/) (an RSS feed r
 1. Navigate to the cloned repository directory:
 
    ```bash
-   cd hoarder-miniflux-webhook
+   cd karakeep-miniflux-webhook
    ```
 
 2. Copy the example environment file:
@@ -49,32 +49,30 @@ A webhook service that connects [Miniflux](https://miniflux.app/) (an RSS feed r
 
 3. Configure the required variables in the `.env` file:
 
-   - `HOARDER_API_TOKEN`: Generate this in Hoarder (Settings → API Keys)
+   - `KARAKEEP_API_TOKEN`: Generate this in Karakeep (Settings → API Keys)
    - `WEBHOOK_SECRET`: This will be generated when enabling webhooks in Miniflux (we'll get this in step 4)
-   - `HOARDER_API_URL`: URL of the Hoarder instance (e.g. http://web:3000)
+   - `KARAKEEP_API_URL`: URL of the Karakeep instance (e.g. http://web:3000)
    - `SAVE_NEW_ENTRIES`: Set to `true` to save all new entries (default: `false`)
    - `ADD_TO_LIST`: Set to `true` to save entries to specific list (set list below) (default: `false`)
-   - `LIST_ID`: List ID in Hoarder, you will set this on step 5 (default: unset)
+   - `LIST_ID`: List ID in Karakeep, you will set this on step 5 (default: unset)
 
 ### 3. Configure Docker Compose Files
 
-You'll need to modify both your Hoarder and Miniflux Docker Compose configurations to work with the webhook service. Since we're specifying the `service_bridge` network manually, we must also explicitly define the default networks for each service to maintain proper connectivity.
+You'll need to modify both your Karakeep and Miniflux Docker Compose configurations to work with the webhook service. Since we're specifying the `service_bridge` network manually, we must also explicitly define the default networks for each service to maintain proper connectivity.
 
 The configurations shown below follow the defaults of each service. Comments indicate what was changed or added. If you have a different configuration, follow the comments to apply the changes to it.
 
-#### Hoarder Configuration (`docker-compose.yml` in your Hoarder directory)
+#### Karakeep Configuration (`docker-compose.yml` in your Karakeep directory)
 
 ```yaml
 services:
   web:
-    image: ghcr.io/hoarder-app/hoarder:${HOARDER_VERSION:-release}
+    image: ghcr.io/karakeep-app/karakeep:${KARAKEEP_VERSION:-release}
     restart: unless-stopped
     volumes:
       - data:/data
     ports:
       - 3000:3000
-    networks:
-      - hoarder # Default network must be explicitly set
     env_file:
       - .env
     environment:
@@ -82,12 +80,14 @@ services:
       BROWSER_WEB_URL: http://chrome:9222
       # OPENAI_API_KEY: ...
       DATA_DIR: /data
+    networks:
+      - karakeep # Default network must be explicitly set
 
   chrome:
     image: gcr.io/zenika-hub/alpine-chrome:123
     restart: unless-stopped
     networks:
-      - hoarder # Default network must be explicitly set
+      - karakeep # Default network must be explicitly set
     command:
       - --no-sandbox
       - --disable-gpu
@@ -97,10 +97,10 @@ services:
       - --hide-scrollbars
 
   meilisearch:
-    image: getmeili/meilisearch:v1.6
+    image: getmeili/meilisearch:v1.13.3
     restart: unless-stopped
     networks:
-      - hoarder # Default network must be explicitly set
+      - karakeep # Default network must be explicitly set
     env_file:
       - .env
     environment:
@@ -109,11 +109,11 @@ services:
       - meilisearch:/meili_data
 
   # Add webhook service
-  hoarder-miniflux-webhook:
-    build: ./hoarder-miniflux-webhook
+  karakeep-miniflux-webhook:
+    build: ./karakeep-miniflux-webhook
     restart: unless-stopped
     networks:
-      - hoarder # Default network must be explicitly set
+      - karakeep # Default network must be explicitly set
       - service_bridge # Additional network for inter-service communication
 
 volumes:
@@ -121,7 +121,7 @@ volumes:
   data:
 
 networks:
-  hoarder: # Default network definition
+  karakeep: # Default network definition
   service_bridge: # Additional network for inter-service communication
     external: true
 ```
@@ -151,7 +151,7 @@ services:
       - ADMIN_PASSWORD=test123
 
   db:
-    image: postgres:15
+    image: postgres:17-alpine
     environment:
       - POSTGRES_USER=miniflux
       - POSTGRES_PASSWORD=secret
@@ -174,15 +174,15 @@ networks:
     external: true
 ```
 
-> **Important:** The default networks (`hoarder` and `miniflux`) must be explicitly defined for each service in their respective Docker Compose files. This is necessary because we're adding the `service_bridge` network manually. Without explicitly setting these networks, services may not be able to communicate with each other properly within their own stack.
+> **Important:** The default networks (`karakeep` and `miniflux`) must be explicitly defined for each service in their respective Docker Compose files. This is necessary because we're adding the `service_bridge` network manually. Without explicitly setting these networks, services may not be able to communicate with each other properly within their own stack.
 
 ### 4. Configure Miniflux Webhook
 
-1. In Miniflux's web interface:
+1. In the Miniflux web interface:
 
    - Go to Settings → Integrations → Webhook
    - Enable webhook
-   - Set the Webhook URL to: `http://hoarder-miniflux-webhook:8080/webhook`
+   - Set the Webhook URL to: `http://karakeep-miniflux-webhook:8080/webhook`
    - Copy the generated webhook secret
 
 2. Paste the webhook secret into your webhook `.env` file:
@@ -195,13 +195,13 @@ networks:
 
 You need `curl` installed for this step. Here we use `jq` for code formatting, but it is not strictly required. An alternative is to use `python -m json.tool`.
 
-1. Make a request to list Hoarder lists:
+1. Make a request to list Karakeep lists:
 
 ```
-curl -H 'Authorization: Bearer <hoarder api key>' -L 'http://<hoarder instance>/api/v1/lists' -H 'Accept: application/json' | jq '.'
+curl -H 'Authorization: Bearer <karakeep api key>' -L 'http://<karakeep instance>/api/v1/lists' -H 'Accept: application/json' | jq '.'
 ```
 
-The response should contain all Hoarder lists you've created, like the following example:
+The response should contain all Karakeep lists you've created, like the following example:
 
 ```
 {
@@ -240,10 +240,10 @@ Copy the string in the `id` field of your list and paste it into your `.env` fil
 
 ### 6. Deploy
 
-1. Start/restart the Hoarder services:
+1. Start/restart the Karakeep services:
 
    ```bash
-   cd /path/to/your/hoarder/directory
+   cd /path/to/your/karakeep/directory
    docker compose down
    docker compose build
    docker compose up -d
@@ -262,10 +262,10 @@ Copy the string in the `id` field of your list and paste it into your `.env` fil
 Your directory structure should look something like this:
 
 ```
-/path/to/your/hoarder/
+/path/to/your/karakeep/
 ├── docker-compose.yml
 ├── .env
-└── hoarder-miniflux-webhook/
+└── karakeep-miniflux-webhook/
     ├── .env
     └── [other webhook files]
 ```
@@ -273,8 +273,8 @@ Your directory structure should look something like this:
 ## Important Notes
 
 - If using a reverse proxy, no additional configuration is needed as services communicate through Docker's internal network
-- Setting `SAVE_NEW_ENTRIES=true` may result in many entries being saved to Hoarder
-- Make sure both `.env` files exist: one for Hoarder and one for the webhook service
+- Setting `SAVE_NEW_ENTRIES=true` may result in many entries being saved to Karakeep
+- Make sure both `.env` files exist: one for Karakeep and one for the webhook service
 
 ## Support
 
