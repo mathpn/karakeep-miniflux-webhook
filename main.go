@@ -101,7 +101,7 @@ func (s *BookmarkService) AddBookmark(entry Entry) (string, error) {
 
 	if err := json.Unmarshal(body, &respData); err != nil {
 		return "", fmt.Errorf("failed to parse bookmark response: %v", err)
-		//fmt.Errorf("failed to parse bookmark response: %v", err)
+		// fmt.Errorf("failed to parse bookmark response: %v", err)
 	}
 
 	log.Printf("Successfully created bookmark. Response: %s", string(body))
@@ -110,30 +110,30 @@ func (s *BookmarkService) AddBookmark(entry Entry) (string, error) {
 
 // https://docs.hoarder.app/api/add-a-bookmark-to-a-list
 func (s *BookmarkService) AddBookmarkToList(bookmarkID, listID string) error {
-    endpoint := fmt.Sprintf("%s/api/v1/lists/%s/bookmarks/%s", s.baseURL, listID, bookmarkID)
-    
-    req, err := http.NewRequest(http.MethodPut, endpoint, nil)
-    if err != nil {
-        return fmt.Errorf("failed to create request: %w", err)
-    }
+	endpoint := fmt.Sprintf("%s/api/v1/lists/%s/bookmarks/%s", s.baseURL, listID, bookmarkID)
 
-    req.Header.Set("Content-Type", "application/json")
-    req.Header.Set("Accept", "application/json")
-    req.Header.Set("Authorization", "Bearer "+s.apiToken)
+	req, err := http.NewRequest(http.MethodPut, endpoint, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
 
-    resp, err := s.httpClient.Do(req)
-    if err != nil {
-        return fmt.Errorf("failed to send request: %w", err)
-    }
-    defer resp.Body.Close()
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Authorization", "Bearer "+s.apiToken)
 
-    if resp.StatusCode != http.StatusNoContent {
-        body, _ := io.ReadAll(resp.Body)
-        return fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, string(body))
-    }
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
 
-    log.Printf("Bookmark %s added to list %s successfully", bookmarkID, listID)
-    return nil
+	if resp.StatusCode != http.StatusNoContent {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, string(body))
+	}
+
+	log.Printf("Bookmark %s added to list %s successfully", bookmarkID, listID)
+	return nil
 }
 
 type Feed struct {
@@ -253,22 +253,22 @@ func verifySignature(payload []byte, signature string) bool {
 var bookmarkService *BookmarkService
 
 func saveEntry(entry Entry) error {
-    bookmarkID, err := bookmarkService.AddBookmark(entry)
-    if err != nil {
-        log.Printf("Failed to save bookmark for %s: %v", entry.URL, err)
-        return fmt.Errorf("failed to save bookmark: %w", err)
-    }
+	bookmarkID, err := bookmarkService.AddBookmark(entry)
+	if err != nil {
+		log.Printf("Failed to save bookmark for %s: %v", entry.URL, err)
+		return fmt.Errorf("failed to save bookmark: %w", err)
+	}
 
-    // Add the bookmark to the specified list
-    if addToList {
-    	if err := bookmarkService.AddBookmarkToList(bookmarkID, listID); err != nil {
-    	    log.Printf("Failed to add bookmark %s to list %s: %v", bookmarkID, listID, err)
-    	    return fmt.Errorf("failed to add bookmark to list: %w", err)
-    	}
-    }
+	// Add the bookmark to the specified list
+	if addToList {
+		if err := bookmarkService.AddBookmarkToList(bookmarkID, listID); err != nil {
+			log.Printf("Failed to add bookmark %s to list %s: %v", bookmarkID, listID, err)
+			return fmt.Errorf("failed to add bookmark to list: %w", err)
+		}
+	}
 
-    log.Printf("Successfully saved and added bookmark for: %s", entry.URL)
-    return nil
+	log.Printf("Successfully saved and added bookmark for: %s", entry.URL)
+	return nil
 }
 
 func handleNewEntries(feed Feed, entries []Entry) error {
